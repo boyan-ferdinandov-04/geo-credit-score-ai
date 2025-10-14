@@ -148,7 +148,6 @@ def plot_diagnostics(
     top_n_features: int,
 ):
     """Generates a 2x2 plot of model diagnostics."""
-    # ... plotting code is unchanged ...
     fig, axes = plt.subplots(2, 2, figsize=(14, 12))
     fig.suptitle("Model Performance & Diagnostics", fontsize=16)
     fpr, tpr, _ = roc_curve(y_test, y_proba)
