@@ -200,15 +200,9 @@ if __name__ == "__main__":
     print(f"Total features being used: {len(feature_cols)}")
     print(f"Missing values in features: {X.isnull().sum().sum()}")
 
-    splits = train_test_split(
+    X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=config["model"]["test_size"], stratify=y, random_state=config["random_state"]
     )
-
-    X_train = cast(pd.DataFrame, splits[0])
-    X_test = cast(pd.DataFrame, splits[1])
-    y_train = cast(pd.Series, splits[2])
-    y_test = cast(pd.Series, splits[3])
-
     pipeline = build_pipeline(config["model"]["lgbm_params"])
 
     print("\n--- Cross-Validation ---")
