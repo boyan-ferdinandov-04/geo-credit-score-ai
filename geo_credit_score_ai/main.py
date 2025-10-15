@@ -70,11 +70,15 @@ config: dict[str, Any] = {
         },
     },
     "geo": {
-        "n_banks": 20,
-        "bounds": {"x": (-50.0, 50.0), "y": (-50.0,50.0)},
-        "distance": ["min_bank_distance", "mean_bank_distance","std_bank_distance"],
-
+    "n_banks": 15,
+    "bounds": {"x": (-50.0, 50.0), "y": (-50.0, 50.0)},
+    "distance_features": ["min_bank_distance", "mean_bank_distance", "std_bank_distance"],
+    "enforce_monotonic": True,         
+    "inject_label_signal": True,       
+    "signal_quantile": 0.80,           
+    "label_signal_strength": 0.25,     
     },
+
     "visualization": {
         "top_n_features": 10,
     },
@@ -198,8 +202,6 @@ def plot_diagnostics(
 ##This functions populates the bounded area with banks at random points
 def create_bank_locations(cfg: dict[str, Any]) -> np.ndarray:
     rng = np.random.default_rng(cfg["random_state"])
-    rng = np.random.default_rng(cfg["random_state"])
-    rng = np.random.default_rng(cfg["random_state"])
     n = cfg["geo"]["n_banks"]
     x_low,x_high = cfg["geo"]["bounds"]["x"]
     y_low, y_high = cfg["geo"]["bounds"]["y"]
@@ -225,13 +227,56 @@ def add_geo_data(df: pd.DataFrame, cfg: dict[str, Any], banks_xy: np.ndarray) ->
     df["std_bank_distance"] = dists.std(axis=1)
 
     return df
+# Bias towards clients that are further away
+def inject_distance_label_signal(df: pd.DataFrame, cfg: dict[str, Any]) -> None:
+    
+    if not cfg["geo"].get("inject_label_signal", False):
+        return
+    q = cfg["geo"].get("signal_quantile", 0.80)
+    strength = cfg["geo"].get("label_signal_strength", 0.25)
+    target = cfg["features"]["target_col"]
+
+    qthr = df["min_bank_distance"].quantile(q)
+    far_mask = df["min_bank_distance"] >= qthr
+
+    rng = np.random.default_rng(cfg["random_state"])
+    to_flip = (df.loc[far_mask, target] == 0) & (rng.random(far_mask.sum()) < strength)
+    df.loc[far_mask, target] = np.where(to_flip, 1, df.loc[far_mask, target])
+# predicts based on the geo data the PD (Possible Default)
+def build_monotone_constraints(feature_cols: list[str], cfg: dict[str, Any]) -> list[int]:
+    
+    if not cfg["geo"].get("enforce_monotonic", False):
+        return []
+    inc_cols = {"min_bank_distance", "mean_bank_distance"}  # std/coords left unconstrained
+    constraints = []
+    for col in feature_cols:
+        if col in inc_cols:
+            constraints.append(1)
+        else:
+            constraints.append(0)
+    return constraints
 # =============================================================================
 # 3. Main Execution Block
 # =============================================================================
 
 if __name__ == "__main__":
     df = create_dataset(config)
+
+    banks_xy = create_bank_locations(config)
+    df = add_geo_data(df, config, banks_xy)
+
+    geo_cols = ["client_x", "client_y", "min_bank_distance", "mean_bank_distance", "std_bank_distance"]
+    config["features"]["original_cols"] += geo_cols
+
+    inject_distance_label_signal(df, config)
+
     df, feature_cols = engineer_features(df, config)
+
+    constraints = build_monotone_constraints(feature_cols, config)
+    model_params = config["model"]["lgbm_params"].copy()
+    if constraints:
+        model_params["monotone_constraints"] = constraints
+        model_params["monotone_constraints_method"] = "advanced" 
 
     X = df[feature_cols]
     y = df[config["features"]["target_col"]]
@@ -242,34 +287,54 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=config["model"]["test_size"], stratify=y, random_state=config["random_state"]
     )
-    pipeline = build_pipeline(config["model"]["lgbm_params"])
+    pipeline = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+            ("clf", LGBMClassifier(**model_params)),
+        ]
+    )
 
     print("\n--- Cross-Validation ---")
     cv_scores = cross_val_score(pipeline, X_train, y_train, cv=config["model"]["cv_folds"], scoring="roc_auc")
     print(f"Mean Cross-validation AUC: {cv_scores.mean():.6f} (± {cv_scores.std():.6f})")
 
     pipeline.fit(X_train, y_train)
-
     eval_results = evaluate_model(pipeline, X_test, y_test)
 
     feature_importance = (
         pd.DataFrame(
-            {
-                "feature": feature_cols,
-                "importance": pipeline.named_steps["clf"].feature_importances_,
-            }
+            {"feature": feature_cols, "importance": pipeline.named_steps["clf"].feature_importances_}
         )
         .sort_values("importance", ascending=False)
         .reset_index(drop=True)
     )
-
+      
     print("\n--- Top 5 Most Important Features ---")
     print(feature_importance.head())
-
     plot_diagnostics(
-        y_test,
-        eval_results["y_proba"],
-        feature_importance,
-        eval_results["auc"],
-        config["visualization"]["top_n_features"],
+    y_test=y_test,
+    y_proba=eval_results["y_proba"],
+    feature_importance=feature_importance,
+    auc=eval_results["auc"],
+    top_n_features=config["visualization"]["top_n_features"],
     )
+
+    assert "min_bank_distance" in X_test.columns, "min_bank_distance missing from X_test"
+
+    proba_test = pd.Series(eval_results["y_proba"], index=X_test.index, name="proba")
+    dist_test = X_test["min_bank_distance"]
+
+    with np.errstate(invalid="ignore"):
+        deciles_test = pd.qcut(dist_test, 10, duplicates="drop")
+
+    monotab_test = (
+    pd.DataFrame({"decile": deciles_test, "proba": proba_test})
+      .groupby("decile", observed=False)["proba"]
+      .mean()
+      .reset_index()
+    )  
+
+print("\n Mean predicted probability to default by distance (work in progress!))")
+print(monotab_test)
+
