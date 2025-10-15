@@ -1,0 +1,81 @@
+# Credit Risk Model Configuration
+#
+# This file defines all hyperparameters and settings for the model training pipeline.
+
+random_state: 42
+
+# Synthetic dataset generation parameters
+dataset:
+  n_samples: 5000
+  n_features: 12
+  n_informative: 6 # Features actually predictive of target
+  n_redundant: 2 # Features derived from informative features
+  n_clusters_per_class: 2
+  weights: [0.9, 0.1] # Class distribution [no_default, default]
+  flip_y: 0.01 # Label noise - proportion of labels to flip
+
+missing_values:
+  p_missing: 0.05 # Probability of missing value per cell (5%)
+
+features:
+  # Base feature column names (before engineering)
+  original_cols:
+    - age
+    - income
+    - loan_amount
+    - loan_term
+    - credit_history_len
+    - num_credit_lines
+    - delinquencies
+    - utilization
+    - employment_years
+    - num_open_accounts
+    - avg_monthly_balance
+    - feature_extra
+
+  target_col: default
+
+  missing_indicator_cols:
+    - income
+    - employment_years
+    - avg_monthly_balance
+
+model:
+  test_size: 0.2 # Proportion of data for test set
+  cv_folds: 5 # Number of cross-validation folds
+
+  lgbm_params:
+    n_estimators: 100 # Number of boosting rounds
+    max_depth: 3 # Maximum tree depth
+    learning_rate: 0.1 # Step size shrinkage
+    class_weight: balanced # Handle class imbalance
+    random_state: 42 # Random seed for model
+    verbosity: -1 # Suppress warnings
+    force_col_wise: true # Force column-wise histogram building
+
+# Geospatial feature configuration
+geo:
+  n_banks: 15 # Number of bank locations to simulate
+
+  # Coordinate bounds for spatial area [min, max]
+  bounds:
+    x: [-50.0, 50.0]
+    y: [-50.0, 50.0]
+
+  # Distance-based features to create
+  distance_features:
+    - min_bank_distance # Distance to nearest bank
+    - mean_bank_distance # Average distance to all banks
+    - std_bank_distance # Std dev of distances to all banks
+
+  # Model configuration for geo features
+  enforce_monotonic: true # Enforce monotonic constraint: distance ↑ → default_prob ↑
+
+  # Signal injection (for synthetic data validation)
+  inject_label_signal: true # Inject synthetic signal based on distance
+  signal_quantile: 0.80 # Distance quantile threshold (top 20% furthest)
+  label_signal_strength: 0.25 # Proportion of far clients to flip to default
+
+# Visualization and reporting settings
+visualization:
+  top_n_features: 10 # Number of top features to display in plots
