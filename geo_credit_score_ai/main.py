@@ -34,6 +34,7 @@ config: dict[str, Any] = {
         "weights": [0.9, 0.1],
         "flip_y": 0.01,
     },
+    #simulate missing values
     "missing_values": {
         "p_missing": 0.05,
     },
@@ -67,6 +68,12 @@ config: dict[str, Any] = {
             "verbosity": -1,
             "force_col_wise": True,
         },
+    },
+    "geo": {
+        "n_banks": 20,
+        "bounds": {"x": (-50.0, 50.0), "y": (-50.0,50.0)},
+        "distance": ["min_bank_distance", "mean_bank_distance","std_bank_distance"],
+
     },
     "visualization": {
         "top_n_features": 10,
@@ -185,7 +192,39 @@ def plot_diagnostics(
     plt.tight_layout(rect=(0, 0.03, 1, 0.95))
     plt.show()
 
+# =============================================================================
+# 2.1. Geo Helper Functions
+# =============================================================================
+##This functions populates the bounded area with banks at random points
+def create_bank_locations(cfg: dict[str, Any]) -> np.ndarray:
+    rng = np.random.default_rng(cfg["random_state"])
+    rng = np.random.default_rng(cfg["random_state"])
+    rng = np.random.default_rng(cfg["random_state"])
+    n = cfg["geo"]["n_banks"]
+    x_low,x_high = cfg["geo"]["bounds"]["x"]
+    y_low, y_high = cfg["geo"]["bounds"]["y"]
+    bank_x = rng.uniform(x_low, x_high, n)
+    bank_y = rng.uniform(y_low, y_high, n)
+    return np.column_stack([bank_x, bank_y])
 
+def add_geo_data(df: pd.DataFrame, cfg: dict[str, Any], banks_xy: np.ndarray) -> pd.DataFrame:
+    rng = np.random.default_rng(cfg["random_state"])
+    x_low, x_high = cfg["geo"]["bounds"]["x"]
+    y_low, y_high = cfg["geo"]["bounds"]["y"]
+
+    df["client_x"] = rng.uniform(x_low, x_high, size = len(df))
+    df["client_y"] = rng.uniform(y_low, y_high, size = len(df))
+
+    client_xy = df[["client_x", "client_y"]].to_numpy()
+    diff_x = client_xy[:, [0]] - banks_xy[:, 0]
+    diff_y = client_xy[:, [1]] - banks_xy[:, 1]
+    dists = np.sqrt(diff_x**2 + diff_y**2)
+
+    df["min_bank_distance"] = dists.min(axis=1)
+    df["mean_bank_distance"] = dists.mean(axis=1)
+    df["std_bank_distance"] = dists.std(axis=1)
+
+    return df
 # =============================================================================
 # 3. Main Execution Block
 # =============================================================================
