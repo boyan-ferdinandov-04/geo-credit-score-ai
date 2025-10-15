@@ -271,7 +271,7 @@ def main() -> None:
 
     # Add geo columns to feature list
     geo_cols = ["client_x", "client_y"] + config.geo.distance_features
-    config.features.original_cols.extend(geo_cols)
+    all_feature_cols = config.features.original_cols + geo_cols
 
     # Inject distance signal
     inject_distance_label_signal(df, config)
