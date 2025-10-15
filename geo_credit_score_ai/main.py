@@ -157,7 +157,7 @@ def build_monotone_constraints(feature_cols: list[str], cfg: Config) -> list[int
 # =============================================================================
 
 
-def build_pipeline(model_params: dict) -> Pipeline:
+def build_pipeline(model_params: dict[str, Any]) -> Pipeline:
     """Builds a scikit-learn pipeline for preprocessing and modeling."""
     return Pipeline(
         [
