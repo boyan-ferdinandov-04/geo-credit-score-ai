@@ -89,7 +89,6 @@ def engineer_features(df: pd.DataFrame, cfg: Config) -> tuple[pd.DataFrame, list
 # Geospatial Features
 # =============================================================================
 
-
 def create_bank_locations(cfg: Config) -> np.ndarray:
     """Populates the bounded area with banks at random points."""
     rng = np.random.default_rng(cfg.random_state)
@@ -257,48 +256,43 @@ def plot_diagnostics(
 
 
 def main() -> None:
-    """Run the full training pipeline."""
-    # Load configuration
     config = Config.from_yaml("config/model_config.yaml")
     print("✅ Loaded config from: config/model_config.yaml")
 
-    # Create dataset
+    # 1) Data
     df = create_dataset(config)
 
-    # Add geospatial features
+    # 2) Geo features
     banks_xy = create_bank_locations(config)
     df = add_geo_data(df, config, banks_xy)
 
-    # Add geo columns to feature list
-    geo_cols = ["client_x", "client_y"] + config.geo.distance_features
-    all_feature_cols = config.features.original_cols + geo_cols
-
-    # Inject distance signal
+    # 3) Optional label signal
     inject_distance_label_signal(df, config)
 
-    # Engineer features
+    # 4) Engineered features
     df, feature_cols = engineer_features(df, config)
 
-    # Build monotonic constraints
+    # 5) ✅ Include geo columns in the model feature set
+    geo_cols = ["client_x", "client_y"] + config.geo.distance_features
+    feature_cols = list(dict.fromkeys(feature_cols + geo_cols))  # keep order, de-dupe
+
+    # 6) Monotone constraints (now sized to match feature_cols)
     constraints = build_monotone_constraints(feature_cols, config)
     model_params = config.model.lgbm_params.copy()
     if constraints:
         model_params["monotone_constraints"] = constraints
         model_params["monotone_constraints_method"] = "advanced"
 
-    # Prepare data
+    # 7) Train/test
     X = df[feature_cols]
     y = df[config.features.target_col]
-
     print(f"Total features being used: {len(feature_cols)}")
     print(f"Missing values in features: {X.isnull().sum().sum()}")
 
-    # Train/test split
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=config.model.test_size, stratify=y, random_state=config.random_state
     )
 
-    # Build pipeline
     pipeline = build_pipeline(model_params)
 
     # Cross-validation
