@@ -7,6 +7,7 @@ Usage:
     python main.py
 """
 
+import logging
 import warnings
 from typing import Any
 
@@ -32,6 +33,10 @@ from src.config import Config
 
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
+logger = logging.getLogger()
+logging.basicConfig(
+    level=logging.INFO, format="%(name)s | %(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+)
 
 # =============================================================================
 # Dataset Creation
@@ -88,6 +93,7 @@ def engineer_features(df: pd.DataFrame, cfg: Config) -> tuple[pd.DataFrame, list
 # =============================================================================
 # Geospatial Features
 # =============================================================================
+
 
 def create_bank_locations(cfg: Config) -> np.ndarray:
     """Populates the bounded area with banks at random points."""
@@ -179,18 +185,20 @@ def evaluate_model(pipeline: Pipeline, X_test: pd.DataFrame, y_test: pd.Series) 
     auc = roc_auc_score(y_test, y_proba)
     brier = brier_score_loss(y_test, y_proba)
 
-    print("\n--- Model Performance ---")
-    print(f"ROC AUC: {auc:.4f}")
-    print(f"Brier Score: {brier:.4f}")
-    print(f"Gini Coefficient: {2 * auc - 1:.4f}")
+    logger.info("\n--- Model Performance ---")
+    logger.info(f"ROC AUC: {auc:.4f}")
+    logger.info(f"Brier Score: {brier:.4f}")
+    logger.info(f"Gini Coefficient: {2 * auc - 1:.4f}")
 
-    print("\n--- Classification Report ---")
-    print(classification_report(y_test, y_pred, target_names=["No Default", "Default"]))
+    logger.info("\n--- Classification Report ---")
+    logger.info(classification_report(y_test, y_pred, target_names=["No Default", "Default"]))
 
     thresholds = np.arange(0.05, 0.5, 0.01)
     f1_scores = [f1_score(y_test, y_proba >= t) for t in thresholds]
     optimal_idx = np.argmax(f1_scores)
-    print(f"Optimal Threshold (by F1-score): {thresholds[optimal_idx]:.3f} with F1-score: {f1_scores[optimal_idx]:.4f}")
+    logger.info(
+        f"Optimal Threshold (by F1-score): {thresholds[optimal_idx]:.3f} with F1-score: {f1_scores[optimal_idx]:.4f}"
+    )
 
     return {"y_proba": y_proba, "y_pred": y_pred, "auc": auc}
 
@@ -257,7 +265,7 @@ def plot_diagnostics(
 
 def main() -> None:
     config = Config.from_yaml("config/model_config.yaml")
-    print("✅ Loaded config from: config/model_config.yaml")
+    logger.info("Loaded config from: config/model_config.yaml")
 
     # 1) Data
     df = create_dataset(config)
@@ -272,7 +280,7 @@ def main() -> None:
     # 4) Engineered features
     df, feature_cols = engineer_features(df, config)
 
-    # 5) ✅ Include geo columns in the model feature set
+    # 5) Include geo columns in the model feature set
     geo_cols = ["client_x", "client_y"] + config.geo.distance_features
     feature_cols = list(dict.fromkeys(feature_cols + geo_cols))  # keep order, de-dupe
 
@@ -286,8 +294,8 @@ def main() -> None:
     # 7) Train/test
     X = df[feature_cols]
     y = df[config.features.target_col]
-    print(f"Total features being used: {len(feature_cols)}")
-    print(f"Missing values in features: {X.isnull().sum().sum()}")
+    logger.info(f"Total features being used: {len(feature_cols)}")
+    logger.info(f"Missing values in features: {X.isnull().sum().sum()}")
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=config.model.test_size, stratify=y, random_state=config.random_state
@@ -296,9 +304,9 @@ def main() -> None:
     pipeline = build_pipeline(model_params)
 
     # Cross-validation
-    print("\n--- Cross-Validation ---")
+    logger.info("\n--- Cross-Validation ---")
     cv_scores = cross_val_score(pipeline, X_train, y_train, cv=config.model.cv_folds, scoring="roc_auc")
-    print(f"Mean Cross-validation AUC: {cv_scores.mean():.6f} (± {cv_scores.std():.6f})")
+    logger.info(f"Mean Cross-validation AUC: {cv_scores.mean():.6f} (± {cv_scores.std():.6f})")
 
     # Train final model
     pipeline.fit(X_train, y_train)
@@ -313,8 +321,8 @@ def main() -> None:
         .reset_index(drop=True)
     )
 
-    print("\n--- Top 5 Most Important Features ---")
-    print(feature_importance.head())
+    logger.info("\n--- Top 5 Most Important Features ---")
+    logger.info(feature_importance.head())
 
     # Plot diagnostics
     plot_diagnostics(
@@ -341,8 +349,8 @@ def main() -> None:
         .reset_index()
     )
 
-    print("\nMean predicted probability to default by distance decile:")
-    print(monotab_test)
+    logger.info("\nMean predicted probability to default by distance decile:")
+    logger.info(monotab_test)
 
 
 if __name__ == "__main__":
