@@ -33,7 +33,7 @@ from src.config import Config
 
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO, format="%(name)s | %(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
 )
