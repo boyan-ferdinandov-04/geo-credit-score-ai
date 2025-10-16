@@ -68,6 +68,11 @@ class ModelConfig(BaseModel):
     cv_folds: int = Field(gt=1, le=10, description="Number of cross-validation folds")
     lgbm_params: dict[str, Any] = Field(description="LightGBM model parameters")
 
+    use_smote: bool = Field(default=True, description="Use SMOTE for oversampling minority class")
+
+    fp_cost: float = Field(default=100.0, ge=0, description="Cost of false positive (rejecting good customer)")
+    fn_cost: float = Field(default=5000.0, ge=0, description="Cost of false negative (missing a default)")
+
     @field_validator("lgbm_params")
     @classmethod
     def validate_lgbm_params(cls, v: dict[str, Any]) -> dict[str, Any]:
@@ -78,6 +83,14 @@ class ModelConfig(BaseModel):
             raise ValueError("max_depth must be positive")
         if "learning_rate" in v and not 0 < v["learning_rate"] <= 1:
             raise ValueError("learning_rate must be between 0 and 1")
+        return v
+
+    @field_validator("fp_cost", "fn_cost")
+    @classmethod
+    def validate_costs(cls, v: float) -> float:
+        """Validate cost parameters are non-negative."""
+        if v < 0:
+            raise ValueError("Costs must be non-negative")
         return v
 
 

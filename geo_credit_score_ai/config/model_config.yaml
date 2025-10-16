@@ -44,10 +44,19 @@ model:
   test_size: 0.2 # Proportion of data for test set
   cv_folds: 5 # Number of cross-validation folds
 
+  use_smote: false
+  fp_cost: 100.0
+  fn_cost: 2500.0
+
   lgbm_params:
-    n_estimators: 100 # Number of boosting rounds
-    max_depth: 3 # Maximum tree depth
-    learning_rate: 0.1 # Step size shrinkage
+    n_estimators: 150 # Number of boosting rounds
+    max_depth: 4 # Maximum tree depth
+    learning_rate: 0.05 # Step size shrinkage
+    num_leaves: 31
+    min_child_samples: 20
+    subsample: 0.8
+    reg_alpha: 0.1
+    reg_lambda: 0.1
     class_weight: balanced # Handle class imbalance
     random_state: 42 # Random seed for model
     verbosity: -1 # Suppress warnings
