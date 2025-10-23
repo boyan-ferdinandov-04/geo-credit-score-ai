@@ -270,6 +270,28 @@ def optimize_threshold_business(
 
     return optimal_row["threshold"], optimal_row["cost"], cost_df
 
+def expected_calibration_error(y_true, y_prob, n_bins = 10):
+    y_true = np.asarray(y_true, dtype = float)
+    y_prob = np.asarray(y_prob, dtype = float)
+
+    bins = np.linspace(0.0, 1.0, n_bins + 1)
+
+    ids = np.digitize(y_prob, bins, right = True) - 1
+    ids = np.clip (ids, 0, n_bins - 1)
+    counts = np.bincount(ids, minlength = n_bins)
+    sum_prob = np.bincount(ids, weights = y_prob, minlength = n_bins)
+    sum_true = np.bincount(ids, weights = y_true, minlength = n_bins)
+
+    nonempty = counts > 0
+    p_mean = np.zeros(n_bins, dtype = float)
+    o_rate = np.zeros(n_bins, dtype = float)
+    p_mean[nonempty] = sum_prob[nonempty] / counts[nonempty]
+    o_rate[nonempty] = sum_true[nonempty] / counts[nonempty]
+
+    bin_weights = counts / counts.sum()
+    return np.sum(bin_weights[nonempty] * np.abs(o_rate[nonempty] - p_mean[nonempty]))
+
+
 
 def evaluate_model(
     pipeline: Pipeline,
@@ -299,6 +321,8 @@ def evaluate_model(
     f1_scores = [f1_score(y_test, y_proba >= t) for t in thresholds]
     optimal_f1_idx = np.argmax(f1_scores)
     optimal_f1_threshold = thresholds[optimal_f1_idx]
+    expected_cal_err = expected_calibration_error(y_test.values, y_proba, n_bins=10)
+    logger.info(f"ECE (10-bin): {expected_cal_err: .6f}")
 
     logger.info(f"\nOptimal F1 Threshold: {optimal_f1_threshold:.3f} (F1={f1_scores[optimal_f1_idx]:.4f})")
 
@@ -337,6 +361,7 @@ def evaluate_model(
         "optimal_threshold": optimal_threshold,
         "optimal_f1_threshold": optimal_f1_threshold,
         "cost_curve": cost_curve,
+        "expected_calibration_error": expected_cal_err
     }
 
 
