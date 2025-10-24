@@ -270,27 +270,27 @@ def optimize_threshold_business(
 
     return optimal_row["threshold"], optimal_row["cost"], cost_df
 
-def expected_calibration_error(y_true, y_prob, n_bins = 10):
-    y_true = np.asarray(y_true, dtype = float)
-    y_prob = np.asarray(y_prob, dtype = float)
+
+def expected_calibration_error(y_true, y_prob, n_bins=10):
+    y_true = np.asarray(y_true, dtype=float)
+    y_prob = np.asarray(y_prob, dtype=float)
 
     bins = np.linspace(0.0, 1.0, n_bins + 1)
 
-    ids = np.digitize(y_prob, bins, right = True) - 1
-    ids = np.clip (ids, 0, n_bins - 1)
-    counts = np.bincount(ids, minlength = n_bins)
-    sum_prob = np.bincount(ids, weights = y_prob, minlength = n_bins)
-    sum_true = np.bincount(ids, weights = y_true, minlength = n_bins)
+    ids = np.digitize(y_prob, bins, right=True) - 1
+    ids = np.clip(ids, 0, n_bins - 1)
+    counts = np.bincount(ids, minlength=n_bins)
+    sum_prob = np.bincount(ids, weights=y_prob, minlength=n_bins)
+    sum_true = np.bincount(ids, weights=y_true, minlength=n_bins)
 
     nonempty = counts > 0
-    p_mean = np.zeros(n_bins, dtype = float)
-    o_rate = np.zeros(n_bins, dtype = float)
+    p_mean = np.zeros(n_bins, dtype=float)
+    o_rate = np.zeros(n_bins, dtype=float)
     p_mean[nonempty] = sum_prob[nonempty] / counts[nonempty]
     o_rate[nonempty] = sum_true[nonempty] / counts[nonempty]
 
     bin_weights = counts / counts.sum()
     return np.sum(bin_weights[nonempty] * np.abs(o_rate[nonempty] - p_mean[nonempty]))
-
 
 
 def evaluate_model(
@@ -306,14 +306,12 @@ def evaluate_model(
     auc = roc_auc_score(y_test, y_proba)
     brier = brier_score_loss(y_test, y_proba)
 
-    logger.info("\n" + "=" * 60)
-    logger.info("MODEL PERFORMANCE")
-    logger.info("=" * 60)
+    logger.info("Model Performance")
     logger.info(f"ROC AUC: {auc:.4f}")
     logger.info(f"Brier Score: {brier:.4f}")
     logger.info(f"Gini Coefficient: {2 * auc - 1:.4f}")
 
-    logger.info("\n--- Default Threshold (0.5) Classification Report ---")
+    logger.info("Default Threshold (0.5) Classification Report")
     logger.info("\n" + classification_report(y_test, y_pred, target_names=["No Default", "Default"]))
 
     # F1-optimized threshold
@@ -327,9 +325,7 @@ def evaluate_model(
     logger.info(f"\nOptimal F1 Threshold: {optimal_f1_threshold:.3f} (F1={f1_scores[optimal_f1_idx]:.4f})")
 
     # NEW: Business-optimized threshold
-    logger.info("\n" + "=" * 60)
-    logger.info("BUSINESS-DRIVEN THRESHOLD OPTIMIZATION")
-    logger.info("=" * 60)
+    logger.info("Business-optimized stat")
     logger.info(f"Cost assumptions: FP=${fp_cost:,.0f}, FN=${fn_cost:,.0f}")
 
     optimal_threshold, optimal_cost, cost_curve = optimize_threshold_business(y_test, y_proba, fp_cost, fn_cost)
@@ -338,14 +334,14 @@ def evaluate_model(
     logger.info(f"Expected Cost: ${optimal_cost:,.0f}")
 
     y_pred_business = (y_proba >= optimal_threshold).astype(int)
-    logger.info("\n--- Business-Optimized Classification Report ---")
+    logger.info("Business-optimized classification_report")
     logger.info("\n" + classification_report(y_test, y_pred_business, target_names=["No Default", "Default"]))
 
     # NEW: Compare thresholds
     tn_b, fp_b, fn_b, tp_b = confusion_matrix(y_test, y_pred_business).ravel()
     tn_d, fp_d, fn_d, tp_d = confusion_matrix(y_test, y_pred).ravel()
 
-    logger.info("\n--- Threshold Comparison ---")
+    logger.info("Threshold comparison")
     logger.info(f"Default (0.5):  TP={tp_d:4d}, FP={fp_d:4d}, FN={fn_d:4d}, TN={tn_d:4d}")
     logger.info(f"Business ({optimal_threshold:.2f}): TP={tp_b:4d}, FP={fp_b:4d}, FN={fn_b:4d}, TN={tn_b:4d}")
     logger.info(f"Default cost:  ${(fp_d * fp_cost + fn_d * fn_cost):,.0f}")
@@ -361,7 +357,7 @@ def evaluate_model(
         "optimal_threshold": optimal_threshold,
         "optimal_f1_threshold": optimal_f1_threshold,
         "cost_curve": cost_curve,
-        "expected_calibration_error": expected_cal_err
+        "expected_calibration_error": expected_cal_err,
     }
 
 
@@ -437,14 +433,10 @@ def plot_diagnostics(
 
 
 def main() -> None:
+    logger.info("Loading config")
     config = Config.from_yaml("config/model_config.yaml")
-    logger.info("=" * 60)
-    logger.info("CREDIT RISK MODEL TRAINING PIPELINE")
-    logger.info("=" * 60)
-    logger.info("Config loaded from: config/model_config.yaml")
 
     # 1) Data
-    logger.info("\n--- Data Generation ---")
     df = create_dataset(config)
     logger.info(f"Created dataset: {len(df)} samples, {len(df.columns)} columns")
     logger.info(f"Target distribution: {df[config.features.target_col].value_counts().to_dict()}")
@@ -458,7 +450,6 @@ def main() -> None:
     inject_distance_label_signal(df, config)
 
     # 4) Engineered features
-    logger.info("\n--- Feature Engineering ---")
     df, feature_cols = engineer_features(df, config)
 
     # 5) Include geo columns in the model feature set
@@ -498,15 +489,13 @@ def main() -> None:
     logger.info(f"Pipeline built (SMOTE: {use_smote})")
 
     # 9) Cross-validation
-    logger.info("\n" + "=" * 60)
-    logger.info("CROSS-VALIDATION")
-    logger.info("=" * 60)
+    logger.info("Cross-validation starting")
     cv_scores = cross_val_score(pipeline, X_train, y_train, cv=config.model.cv_folds, scoring="roc_auc")
     logger.info(f"Mean CV AUC: {cv_scores.mean():.6f} (± {cv_scores.std():.6f})")
     logger.info(f"CV scores: {[f'{s:.4f}' for s in cv_scores]}")
 
     # 10) Train final model
-    logger.info("\n--- Training Final Model ---")
+    logger.info("Training Final Model")
     pipeline.fit(X_train, y_train)
     logger.info("Training complete")
 
@@ -526,9 +515,7 @@ def main() -> None:
         .reset_index(drop=True)
     )
 
-    logger.info("\n" + "=" * 60)
-    logger.info("FEATURE IMPORTANCE")
-    logger.info("=" * 60)
+    logger.info("Feature importance")
     logger.info("\n" + feature_importance.head(10).to_string(index=False))
 
     # 13) Plot diagnostics
@@ -541,9 +528,7 @@ def main() -> None:
     )
 
     # 14) Distance-based probability analysis
-    logger.info("\n" + "=" * 60)
-    logger.info("DISTANCE-BASED ANALYSIS")
-    logger.info("=" * 60)
+    logger.info("Distance-based analysis")
 
     assert "min_bank_distance" in X_test.columns, "min_bank_distance missing from X_test"
 
@@ -563,9 +548,7 @@ def main() -> None:
     logger.info("Mean predicted probability by distance decile:")
     logger.info("\n" + monotab_test.to_string(index=False))
 
-    logger.info("\n" + "=" * 60)
-    logger.info("PIPELINE COMPLETE")
-    logger.info("=" * 60)
+    logger.info("Pipeline Successful ")
 
 
 if __name__ == "__main__":
