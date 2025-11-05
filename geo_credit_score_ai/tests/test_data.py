@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from main import create_dataset, engineer_features
+from src.data import create_dataset, engineer_features
 
 
 class TestCreateDataset:
