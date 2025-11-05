@@ -17,6 +17,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
     "ruff>=0.14.0",
 ]
 
@@ -55,4 +57,16 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 docstring-code-format = false
 
-
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+filterwarnings = [
+    "ignore::UserWarning:sklearn.utils.validation",
+]
