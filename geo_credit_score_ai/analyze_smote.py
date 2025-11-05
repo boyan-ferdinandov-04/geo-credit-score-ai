@@ -14,7 +14,7 @@ minority_count = class_dist.min()
 majority_count = class_dist.max()
 
 # Estimate train split
-train_size = int(total_samples * cfg.model.test_size)
+train_size = int(total_samples * (1 - cfg.model.test_size))
 minority_in_train = int(minority_count * (1 - cfg.model.test_size))
 
 print("=" * 60)
