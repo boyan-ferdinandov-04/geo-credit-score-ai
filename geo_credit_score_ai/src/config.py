@@ -5,7 +5,7 @@ and validated at runtime.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -108,7 +108,7 @@ class VisualizationConfig(BaseModel):
 
 class CalibrationConfig(BaseModel):
     enabled: bool = Field(default=True)
-    method: str = Field(default="isotonic")
+    method: Literal["sigmoid", "isotonic"] = Field(default="isotonic")
     cv: int = Field(default=5, ge=2, le=10)
 
 
