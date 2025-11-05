@@ -4,7 +4,6 @@ These tests ensure that constants maintain their expected values
 and document the business logic behind them.
 """
 
-import pytest
 
 from src.constants import (
     DELINQ_DIVISOR,
