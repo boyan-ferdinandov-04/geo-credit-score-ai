@@ -81,7 +81,7 @@ def main():
     logger.info(f"Mean CV AUC: {cv_scores.mean():.6f} ± {cv_scores.std():.6f}")
 
     # ---------------- Calibration ----------------
-    # Apply calibration by wrapping the entire pipeline BEFORE fitting
+    # Apply calibration by wrapping the entire pipeline fitting
     if getattr(config, "calibration", None) and config.calibration.enabled:
         logger.info(f"Applying {config.calibration.method} calibration with CV={config.calibration.cv}")
         pipeline = CalibratedClassifierCV(
