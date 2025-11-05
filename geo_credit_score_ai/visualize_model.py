@@ -115,7 +115,7 @@ def main():
 
     # 11. Generate comprehensive visualizations
     logger.info("\nGenerating visualization dashboard...")
-    fig = plot_comprehensive_diagnostics(
+    plot_comprehensive_diagnostics(
         y_true=y_test.values,
         y_proba=eval_results["y_proba"],
         y_pred=eval_results["y_pred"],
