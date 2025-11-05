@@ -9,7 +9,7 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
-from main import build_pipeline, evaluate_model
+from src.models.pipeline import build_pipeline, evaluate_model
 
 
 class TestBuildPipeline:
