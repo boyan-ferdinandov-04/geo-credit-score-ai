@@ -1,4 +1,4 @@
-"""Constants used throughout the fraud detection system.
+"""Constants used throughout the credit risk/default prediction system.
 
 This module centralizes all magic numbers to improve code maintainability
 and make business logic explicit.
