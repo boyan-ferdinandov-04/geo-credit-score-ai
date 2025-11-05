@@ -367,7 +367,7 @@ def plot_comprehensive_diagnostics(
         >>> plt.show()
     """
     fig, axes = plt.subplots(2, 3, figsize=figsize)
-    fig.suptitle("Model Performance Dashboard - Fraud Detection", fontsize=18, fontweight="bold", y=0.98)
+    fig.suptitle("Model Performance Dashboard - Credit Risk Prediction", fontsize=18, fontweight="bold", y=0.98)
 
     # 1. ROC Curve
     plot_roc_curve(y_true, y_proba, auc, ax=axes[0, 0])
