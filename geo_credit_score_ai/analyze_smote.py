@@ -94,14 +94,14 @@ def calculate_optimal_threshold(
 
     for thresh in thresholds:
         y_pred = (y_proba >= thresh).astype(int)
-        tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+        _tn, fp, fn, _tp = confusion_matrix(y_true, y_pred).ravel()
         total_cost = (fp * fp_cost) + (fn * fn_cost)
 
         if total_cost < min_cost:
             min_cost = total_cost
             optimal_thresh = thresh
 
-    return optimal_thresh, min_cost
+    return float(optimal_thresh), float(min_cost)
 
 
 def train_and_evaluate(
@@ -159,28 +159,29 @@ def train_and_evaluate(
     y_proba = pipeline.predict_proba(X_test)[:, 1]
     y_pred_default = pipeline.predict(X_test)  # Using default 0.5 threshold
 
+    y_test_array = np.asarray(y_test.values, dtype=np.float64)
     optimal_thresh, min_cost = calculate_optimal_threshold(
-        y_test.values, y_proba, config.model.fp_cost, config.model.fn_cost
+        y_test_array, y_proba, config.model.fp_cost, config.model.fn_cost
     )
     y_pred_optimal = (y_proba >= optimal_thresh).astype(int)
 
     # Metrics with default threshold (0.5)
     auc = roc_auc_score(y_test, y_proba)
     brier = brier_score_loss(y_test, y_proba)
-    precision_default = precision_score(y_test, y_pred_default, zero_division=0)
-    recall_default = recall_score(y_test, y_pred_default, zero_division=0)
-    f1_default = f1_score(y_test, y_pred_default, zero_division=0)
+    precision_default = precision_score(y_test, y_pred_default, zero_division="0")
+    recall_default = recall_score(y_test, y_pred_default, zero_division="0")
+    f1_default = f1_score(y_test, y_pred_default, zero_division="0")
 
     # Metrics with optimal threshold
-    precision_optimal = precision_score(y_test, y_pred_optimal, zero_division=0)
-    recall_optimal = recall_score(y_test, y_pred_optimal, zero_division=0)
-    f1_optimal = f1_score(y_test, y_pred_optimal, zero_division=0)
+    precision_optimal = precision_score(y_test, y_pred_optimal, zero_division="0")
+    recall_optimal = recall_score(y_test, y_pred_optimal, zero_division="0")
+    f1_optimal = f1_score(y_test, y_pred_optimal, zero_division="0")
 
     # Confusion matrices
     cm_default = confusion_matrix(y_test, y_pred_default)
     cm_optimal = confusion_matrix(y_test, y_pred_optimal)
 
-    tn_default, fp_default, fn_default, tp_default = cm_default.ravel()
+    _tn_default, fp_default, fn_default, _tp_default = cm_default.ravel()
     cost_default = (fp_default * config.model.fp_cost) + (fn_default * config.model.fn_cost)
 
     logger.info(f"\n{model_name} Results:")
@@ -336,9 +337,11 @@ def plot_smote_comparison(
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     fig.suptitle("SMOTE vs No SMOTE - Performance Comparison", fontsize=18, fontweight="bold", y=0.98)
 
+    y_test_array = np.asarray(y_test.values, dtype=np.float64)
+
     # Row 1: Without SMOTE
     plot_roc_curve(
-        y_test.values,
+        y_test_array,
         results_no_smote["y_proba"],
         results_no_smote["auc"],
         ax=axes[0, 0],
@@ -346,11 +349,11 @@ def plot_smote_comparison(
     )
 
     plot_precision_recall_curve(
-        y_test.values, results_no_smote["y_proba"], ax=axes[0, 1], title="Precision-Recall - Without SMOTE"
+        y_test_array, results_no_smote["y_proba"], ax=axes[0, 1], title="Precision-Recall - Without SMOTE"
     )
 
     plot_threshold_analysis(
-        y_test.values,
+        y_test_array,
         results_no_smote["y_proba"],
         fp_cost=config.model.fp_cost,
         fn_cost=config.model.fn_cost,
@@ -360,7 +363,7 @@ def plot_smote_comparison(
 
     # Row 2: With SMOTE
     plot_roc_curve(
-        y_test.values,
+        y_test_array,
         results_with_smote["y_proba"],
         results_with_smote["auc"],
         ax=axes[1, 0],
@@ -368,11 +371,11 @@ def plot_smote_comparison(
     )
 
     plot_precision_recall_curve(
-        y_test.values, results_with_smote["y_proba"], ax=axes[1, 1], title="Precision-Recall - With SMOTE"
+        y_test_array, results_with_smote["y_proba"], ax=axes[1, 1], title="Precision-Recall - With SMOTE"
     )
 
     plot_threshold_analysis(
-        y_test.values,
+        y_test_array,
         results_with_smote["y_proba"],
         fp_cost=config.model.fp_cost,
         fn_cost=config.model.fn_cost,
@@ -380,7 +383,7 @@ def plot_smote_comparison(
         title="Business Cost - With SMOTE",
     )
 
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    plt.tight_layout(rect=(0, 0, 1, 0.96))
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
     logger.info(f"Comparison plot saved to: {save_path}")
 
@@ -423,11 +426,15 @@ def main():
 
     # 7. Train/test split
     logger.info("Splitting data...")
-    X = df[feature_cols]
-    y = df[config.features.target_col]
-    X_train, X_test, y_train, y_test = train_test_split(
+    X: pd.DataFrame = df[feature_cols]
+    y: pd.Series = df[config.features.target_col]
+    split_result = train_test_split(
         X, y, test_size=config.model.test_size, stratify=y, random_state=config.random_state
     )
+    X_train: pd.DataFrame = split_result[0]
+    X_test: pd.DataFrame = split_result[1]
+    y_train: pd.Series = split_result[2]
+    y_test: pd.Series = split_result[3]
 
     test_dist = get_class_distribution(y_test, "Test set")
     logger.info(
