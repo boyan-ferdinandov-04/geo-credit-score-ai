@@ -62,7 +62,7 @@ geo:
     - mean_bank_distance
     - std_bank_distance
   enforce_monotonic: true
-  inject_label_signal: true
+  inject_label_signal: false
   signal_quantile: 0.80
   label_signal_strength: 0.25
 
