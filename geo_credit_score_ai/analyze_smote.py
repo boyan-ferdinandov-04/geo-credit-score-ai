@@ -168,14 +168,14 @@ def train_and_evaluate(
     # Metrics with default threshold (0.5)
     auc = roc_auc_score(y_test, y_proba)
     brier = brier_score_loss(y_test, y_proba)
-    precision_default = precision_score(y_test, y_pred_default, zero_division="0")
-    recall_default = recall_score(y_test, y_pred_default, zero_division="0")
-    f1_default = f1_score(y_test, y_pred_default, zero_division="0")
+    precision_default = precision_score(y_test, y_pred_default, zero_division=0.0)
+    recall_default = recall_score(y_test, y_pred_default, zero_division=0.0)
+    f1_default = f1_score(y_test, y_pred_default, zero_division=0.0)
 
     # Metrics with optimal threshold
-    precision_optimal = precision_score(y_test, y_pred_optimal, zero_division="0")
-    recall_optimal = recall_score(y_test, y_pred_optimal, zero_division="0")
-    f1_optimal = f1_score(y_test, y_pred_optimal, zero_division="0")
+    precision_optimal = precision_score(y_test, y_pred_optimal, zero_division=0.0)
+    recall_optimal = recall_score(y_test, y_pred_optimal, zero_division=0.0)
+    f1_optimal = f1_score(y_test, y_pred_optimal, zero_division=0.0)
 
     # Confusion matrices
     cm_default = confusion_matrix(y_test, y_pred_default)
